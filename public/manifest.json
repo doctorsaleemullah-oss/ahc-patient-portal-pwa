@@ -1,11 +1,11 @@
 {
   "name": "Advanced Heart Center — Patient Care Portal",
-  "short_name": "AHC Patient",
-  "description": "Patient Portal, Medicine Alarms, Cardiac Rehab, Doctor Broadcasts & AI Emergency ECG Triage synced with Advanced-heart-center-two.vercel.app",
+  "short_name": "AHC Heart Care",
+  "description": "Patient Portal, Live Queue, Medicine Alarms, Rehab & SOS ECG AI Triage by Dr. Saleem Ullah",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A192F",
-  "theme_color": "#D4AF37",
+  "background_color": "#081528",
+  "theme_color": "#0F2647",
   "orientation": "portrait-primary",
   "icons": [
     {

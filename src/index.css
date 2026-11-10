@@ -2,51 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .clay-surface {
-    background: linear-gradient(145deg, rgba(22, 43, 77, 0.94), rgba(11, 24, 45, 0.97));
-    border-radius: 26px;
-    border: 1.5px solid rgba(255, 255, 255, 0.14);
-    box-shadow:
-      12px 16px 32px rgba(2, 6, 18, 0.65),
-      -4px -4px 16px rgba(56, 108, 185, 0.14),
-      inset 2px 3px 6px rgba(255, 255, 255, 0.14),
-      inset -3px -4px 8px rgba(3, 9, 23, 0.6);
-  }
-  .clay-btn-emerald {
-    background: linear-gradient(145deg, #10b981, #047857);
-    border-radius: 20px;
-    border: 1.5px solid rgba(255, 255, 255, 0.35);
-    box-shadow:
-      0 10px 22px rgba(5, 150, 105, 0.4),
-      inset 2px 3px 6px rgba(255, 255, 255, 0.42),
-      inset -2px -3px 6px rgba(2, 65, 45, 0.6);
-  }
-  .clay-btn-gold {
-    background: linear-gradient(145deg, #fbbf24, #b45309);
-    border-radius: 20px;
-    border: 1.5px solid rgba(255, 255, 255, 0.45);
-    box-shadow:
-      0 10px 22px rgba(217, 119, 6, 0.42),
-      inset 2px 3px 6px rgba(255, 255, 255, 0.52),
-      inset -2px -3px 6px rgba(120, 53, 15, 0.65);
-  }
-  .clay-btn-crimson {
-    background: linear-gradient(145deg, #ef4444, #991b1b);
-    border-radius: 20px;
-    border: 1.5px solid rgba(255, 255, 255, 0.38);
-    box-shadow:
-      0 10px 26px rgba(220, 38, 38, 0.48),
-      inset 2px 3px 6px rgba(255, 255, 255, 0.45),
-      inset -2px -3px 6px rgba(105, 15, 15, 0.65);
-  }
-  .clay-btn-blue {
-    background: linear-gradient(145deg, #3b82f6, #1d4ed8);
-    border-radius: 20px;
-    border: 1.5px solid rgba(255, 255, 255, 0.35);
-    box-shadow:
-      0 10px 22px rgba(37, 99, 235, 0.38),
-      inset 2px 3px 6px rgba(255, 255, 255, 0.4),
-      inset -2px -3px 6px rgba(20, 50, 130, 0.65);
-  }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: radial-gradient(circle at 15% 15%, #13315c 0%, #0b1d36 55%, #071324 100%);
+  min-height: 100vh;
 }
