@@ -2,8 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  background: radial-gradient(circle at 15% 15%, #13315c 0%, #0b1d36 55%, #071324 100%);
-  min-height: 100vh;
+@layer utilities {
+  /* Crisp Glassmorphic & Clay Pill Badges matching Reference Design */
+  .clay-grid-card {
+    background: #ffffff;
+    border-radius: 26px;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    box-shadow:
+      0 12px 28px -6px rgba(15, 23, 42, 0.08),
+      0 4px 12px -2px rgba(15, 23, 42, 0.04),
+      inset 0 1px 2px rgba(255, 255, 255, 0.8);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .clay-grid-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 18px 36px -8px rgba(15, 23, 42, 0.12),
+      0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  }
+
+  .banner-glow {
+    background: radial-gradient(circle at 75% 30%, rgba(225, 29, 72, 0.15) 0%, rgba(59, 130, 246, 0.12) 40%, rgba(240, 249, 255, 0.95) 75%);
+  }
+
+  /* Bottom Bar Active Indicator */
+  .tab-pill-active {
+    background: #e0f2fe;
+    color: #0284c7;
+    position: relative;
+  }
+  .tab-pill-active::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20%;
+    right: 20%;
+    height: 3px;
+    background: #0284c7;
+    border-radius: 9999px;
+  }
 }
