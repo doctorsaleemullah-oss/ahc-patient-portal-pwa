@@ -3,43 +3,123 @@
 @tailwind utilities;
 
 @layer utilities {
-  /* Crisp Glassmorphic & Clay Pill Badges matching Reference Design */
-  .clay-grid-card {
+  /* =========================================================
+     3D CLAYMORPHISM SPECIFICATIONS MATCHING REFERENCE IMAGE
+     ========================================================= */
+
+  /* Rounded, inflated clay surface with top inner highlight & soft deep drop shadow */
+  .clay-card-pill {
     background: #ffffff;
-    border-radius: 26px;
-    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 28px;
+    border: 1.5px solid rgba(255, 255, 255, 0.95);
     box-shadow:
-      0 12px 28px -6px rgba(15, 23, 42, 0.08),
-      0 4px 12px -2px rgba(15, 23, 42, 0.04),
-      inset 0 1px 2px rgba(255, 255, 255, 0.8);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      0 14px 30px -4px rgba(15, 23, 42, 0.08),
+      0 6px 14px -2px rgba(15, 23, 42, 0.04),
+      inset 2px 2px 5px rgba(255, 255, 255, 0.9),
+      inset -3px -3px 8px rgba(148, 163, 184, 0.15);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .clay-grid-card:hover {
-    transform: translateY(-2px);
+  .clay-card-pill:hover {
+    transform: translateY(-3px) scale(1.008);
     box-shadow:
-      0 18px 36px -8px rgba(15, 23, 42, 0.12),
-      0 8px 16px -4px rgba(15, 23, 42, 0.06);
+      0 20px 38px -6px rgba(15, 23, 42, 0.12),
+      0 10px 18px -4px rgba(15, 23, 42, 0.06),
+      inset 2px 2px 5px rgba(255, 255, 255, 0.95),
+      inset -3px -3px 9px rgba(148, 163, 184, 0.2);
   }
 
-  .banner-glow {
-    background: radial-gradient(circle at 75% 30%, rgba(225, 29, 72, 0.15) 0%, rgba(59, 130, 246, 0.12) 40%, rgba(240, 249, 255, 0.95) 75%);
+  /* 3D Inflated Clay Icon Container */
+  .clay-icon-blue {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(37, 99, 235, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(30, 64, 175, 0.2);
   }
 
-  /* Bottom Bar Active Indicator */
-  .tab-pill-active {
-    background: #e0f2fe;
-    color: #0284c7;
-    position: relative;
+  .clay-icon-emerald {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(5, 150, 105, 0.22),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(6, 78, 59, 0.2);
   }
-  .tab-pill-active::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 20%;
-    right: 20%;
-    height: 3px;
-    background: #0284c7;
+
+  .clay-icon-purple {
+    background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(124, 58, 237, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(91, 33, 182, 0.2);
+  }
+
+  .clay-icon-amber {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(217, 119, 6, 0.22),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(146, 64, 14, 0.2);
+  }
+
+  .clay-icon-cyan {
+    background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(8, 145, 178, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(21, 94, 117, 0.2);
+  }
+
+  .clay-icon-violet {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 8px 18px rgba(147, 51, 234, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+      inset -2px -2px 5px rgba(107, 33, 168, 0.2);
+  }
+
+  /* 3D Arrow Action Bubbles */
+  .clay-arrow-bubble {
     border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 4px 10px rgba(0, 0, 0, 0.05),
+      inset 1px 1px 3px rgba(255, 255, 255, 0.9),
+      inset -1px -1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Deep Navy Clay Appointment Card */
+  .clay-navy-card {
+    background: linear-gradient(145deg, #0e2f60, #081d3e);
+    border-radius: 28px;
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 18px 36px -4px rgba(8, 29, 62, 0.35),
+      inset 2px 2px 5px rgba(255, 255, 255, 0.22),
+      inset -3px -3px 8px rgba(3, 10, 24, 0.7);
+  }
+
+  /* Floating 3D Emergency Headset Dial */
+  .clay-fab-headset {
+    background: linear-gradient(145deg, #0f346b, #092044);
+    border: 2.5px solid #ffffff;
+    box-shadow:
+      0 16px 36px rgba(11, 37, 78, 0.45),
+      inset 2px 3px 6px rgba(255, 255, 255, 0.4),
+      inset -3px -3px 8px rgba(3, 11, 25, 0.7);
+  }
+
+  /* Bottom Bar Tab Highlight Pill */
+  .clay-tab-active {
+    background: #e0f2fe;
+    box-shadow:
+      inset 1px 1px 3px rgba(255, 255, 255, 0.9),
+      inset -1px -1px 3px rgba(2, 132, 199, 0.2);
   }
 }

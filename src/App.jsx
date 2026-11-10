@@ -14,28 +14,28 @@ import {
   Check,
   ArrowRight,
   ShieldCheck,
-  Lock,
-  Plus,
   Activity,
   ShieldAlert,
   Megaphone,
-  Video,
-  Download,
-  Smartphone,
-  Apple,
-  Monitor,
   PhoneCall,
   UserCheck,
-  RotateCcw,
-  Play,
-  Pause,
   MapPin,
-  Send,
-  MessageSquare,
-  Sparkles
+  Database,
+  Search,
+  Sparkles,
+  Download,
+  AlertTriangle
 } from 'lucide-react';
 
-const INITIAL_PATIENTS = [
+import {
+  isDatabaseConnected,
+  getPatientRecord,
+  syncPatientRecord,
+  getDoctorBroadcasts,
+  transmitEmergencyAlert
+} from './lib/db';
+
+const SEED_PATIENTS = [
   {
     id: 'AHC-2026-0842',
     name: 'Muhammad Khan',
@@ -56,7 +56,7 @@ const INITIAL_PATIENTS = [
       clinic: 'Clinic No. 1',
       date: 'Tue, Nov 18, 2026',
       time: '10:30 AM',
-      status: 'Confirmed',
+      status: 'Confirmed'
     },
     vitals: { bpSys: 128, bpDia: 78, hr: 68, spo2: 97, sugar: 136, weight: 74 },
     echoSummary: 'Mildly reduced LV systolic function (LVEF 45%). Mild anterior hypokinesia. Grade I diastolic dysfunction.',
@@ -94,7 +94,7 @@ const INITIAL_PATIENTS = [
       clinic: 'Khwaza Khela Outreach Clinic',
       date: 'Sun, Nov 23, 2026',
       time: '11:00 AM',
-      status: 'Confirmed',
+      status: 'Confirmed'
     },
     vitals: { bpSys: 112, bpDia: 70, hr: 72, spo2: 95, sugar: 118, weight: 66 },
     echoSummary: 'Severely reduced LV systolic function (LVEF 30%). Functional mitral regurgitation.',
@@ -110,6 +110,21 @@ const INITIAL_PATIENTS = [
       'Weigh yourself every morning before breakfast; notify clinic if weight increases by > 2 kg in 3 days',
       'Elevate legs on pillows when resting'
     ]
+  }
+];
+
+const SEED_BROADCASTS = [
+  {
+    id: 1,
+    title: 'Sunday Outreach Cardiac Clinic — Khwaza Khela',
+    body: 'Dr. Saleem Ullah will be available this Sunday at Dr. Abdul Basir Hospital for OPD consultations and Echocardiography.',
+    date: 'Pinned Clinic Notice'
+  },
+  {
+    id: 2,
+    title: 'Post-Angioplasty Care: Dual Antiplatelet Therapy',
+    body: 'Never stop Aspirin or Ticagrelor/Brilinta without consulting Dr. Saleem Ullah. Stent thrombosis can occur rapidly.',
+    date: 'Patient Education'
   }
 ];
 
@@ -135,89 +150,100 @@ const ECG_PRESETS = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'appointments' | 'reports' | 'medicines' | 'facilities' | 'more' | 'sos' | 'admin'
+  const [activeTab, setActiveTab] = useState('home');
   const [patients, setPatients] = useState(() => {
-    const saved = localStorage.getItem('ahc_patients_v3');
-    return saved ? JSON.parse(saved) : INITIAL_PATIENTS;
+    const cached = localStorage.getItem('ahc_patients_db');
+    return cached ? JSON.parse(cached) : SEED_PATIENTS;
   });
   const [currentPatientId, setCurrentPatientId] = useState('AHC-2026-0842');
-  const [lang, setLang] = useState('en'); // 'en' | 'ur'
+  const [broadcasts, setBroadcasts] = useState(() => {
+    const cached = localStorage.getItem('ahc_broadcasts_db');
+    return cached ? JSON.parse(cached) : SEED_BROADCASTS;
+  });
 
-  // Modals & Sheets
-  const [showInstallModal, setShowInstallModal] = useState(false);
+  // Modal Dialogs
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDbModal, setShowDbModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [loginInput, setLoginInput] = useState('');
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
 
-  // SOS ECG State
+  // SOS ECG Simulation
   const [selectedEcg, setSelectedEcg] = useState('stemi');
   const [sosBpSys, setSosBpSys] = useState(132);
   const [sosBpDia, setSosBpDia] = useState(82);
-  const [sosSent, setSosSent] = useState(false);
+  const [sosBanner, setSosBanner] = useState('');
 
-  // Rehab Walking Timer
-  const [walkSec, setWalkSec] = useState(0);
-  const [isWalking, setIsWalking] = useState(false);
-
-  // Broadcasts
-  const [broadcasts, setBroadcasts] = useState([
-    {
-      id: 1,
-      title: 'Sunday Outreach Cardiac Clinic — Khwaza Khela',
-      body: 'Dr. Saleem Ullah will be available this Sunday at Dr. Abdul Basir Hospital for OPD consultations and Echocardiography.',
-      date: 'Pinned Clinic Notice'
-    },
-    {
-      id: 2,
-      title: 'Post-Angioplasty Care: Dual Antiplatelet Therapy',
-      body: 'Never stop Aspirin or Ticagrelor/Brilinta without consulting Dr. Saleem Ullah. Stent thrombosis can occur rapidly.',
-      date: 'Patient Education'
-    }
-  ]);
+  // Admin Broadcast
   const [newTitle, setNewTitle] = useState('');
   const [newBody, setNewBody] = useState('');
 
   const patient = patients.find((p) => p.id === currentPatientId) || patients[0];
 
   useEffect(() => {
-    localStorage.setItem('ahc_patients_v3', JSON.stringify(patients));
+    localStorage.setItem('ahc_patients_db', JSON.stringify(patients));
   }, [patients]);
 
   useEffect(() => {
-    if (!isWalking) return;
-    const t = setInterval(() => setWalkSec((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [isWalking]);
+    localStorage.setItem('ahc_broadcasts_db', JSON.stringify(broadcasts));
+  }, [broadcasts]);
 
-  const toggleMed = (id) => {
-    setPatients((prev) =>
-      prev.map((p) =>
-        p.id === patient.id
-          ? { ...p, meds: p.meds.map((m) => (m.id === id ? { ...m, taken: !m.taken } : m)) }
-          : p
-      )
+  const toggleMedication = async (medId) => {
+    const updatedPatient = {
+      ...patient,
+      meds: patient.meds.map((m) => (m.id === medId ? { ...m, taken: !m.taken } : m))
+    };
+    setPatients((prev) => prev.map((p) => (p.id === patient.id ? updatedPatient : p)));
+    await syncPatientRecord(updatedPatient);
+  };
+
+  const handleTransmitSos = async () => {
+    const packet = {
+      patient_id: patient.id,
+      patient_name: patient.name,
+      diagnosis: patient.diagnosis,
+      bp: `${sosBpSys}/${sosBpDia}`,
+      ecg: ECG_PRESETS[selectedEcg].label,
+      urgency: ECG_PRESETS[selectedEcg].urgency,
+      created_at: new Date().toISOString()
+    };
+    const res = await transmitEmergencyAlert(packet);
+    setSosBanner(
+      `✅ Transmitted! ${patient.name}'s ECG & Vitals recorded in ${
+        res.mode === 'cloud_database' ? 'Cloud PostgreSQL Database' : 'Cath Lab Emergency Queue'
+      }!`
     );
   };
 
-  const handlePublishPost = (e) => {
+  const handlePatientLogin = async (e) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newBody.trim()) return;
-    setBroadcasts([
-      { id: Date.now(), title: newTitle.trim(), body: newBody.trim(), date: 'Just Published' },
-      ...broadcasts
-    ]);
-    setNewTitle('');
-    setNewBody('');
+    const found = await getPatientRecord(loginInput.trim());
+    if (found) {
+      if (!patients.some((p) => p.id === found.id)) {
+        setPatients([found, ...patients]);
+      }
+      setCurrentPatientId(found.id);
+      setShowAuthModal(false);
+    } else {
+      const localFound = patients.find(
+        (p) =>
+          p.id.toLowerCase() === loginInput.trim().toLowerCase() ||
+          p.phone === loginInput.trim()
+      );
+      if (localFound) {
+        setCurrentPatientId(localFound.id);
+        setShowAuthModal(false);
+      }
+    }
   };
 
-  const handleRegister = (e) => {
+  const handlePatientRegister = async (e) => {
     e.preventDefault();
     if (!regName.trim() || !regPhone.trim()) return;
     const newId = `AHC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const created = {
-      ...INITIAL_PATIENTS[0],
+    const newRecord = {
+      ...SEED_PATIENTS[0],
       id: newId,
       name: regName.trim(),
       phone: regPhone.trim(),
@@ -225,44 +251,45 @@ export default function App() {
         doctor: 'Dr. Saleem Ullah',
         title: 'Consultant Cardiologist',
         clinic: 'Clinic No. 1',
-        date: 'Booking Pending',
-        time: 'Pending Slot',
-        status: 'Unconfirmed'
+        date: 'Booking Received',
+        time: 'Pending Slot Confirmation',
+        status: 'Confirmed'
       }
     };
-    setPatients([created, ...patients]);
-    setCurrentPatientId(created.id);
+    await syncPatientRecord(newRecord);
+    setPatients([newRecord, ...patients]);
+    setCurrentPatientId(newRecord.id);
     setShowAuthModal(false);
   };
 
-  const handleLogin = (e) => {
+  const handlePublishPost = (e) => {
     e.preventDefault();
-    const found = patients.find(
-      (p) => p.id.toLowerCase() === loginInput.trim().toLowerCase() || p.phone === loginInput.trim()
-    );
-    if (found) {
-      setCurrentPatientId(found.id);
-      setShowAuthModal(false);
-    }
+    if (!newTitle.trim() || !newBody.trim()) return;
+    const item = { id: Date.now(), title: newTitle.trim(), body: newBody.trim(), date: 'Just Published' };
+    setBroadcasts([item, ...broadcasts]);
+    setNewTitle('');
+    setNewBody('');
   };
 
   return (
     <div className="min-h-screen bg-[#F0F5FA] text-slate-800 pb-28 font-sans antialiased selection:bg-rose-500 selection:text-white">
-      {/* Top Navigation Bar Matching Exact Reference Design */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+      {/* =========================================================
+          TOP HEADER: 3D CLAY NAVIGATION & BRANDING BAR
+          ========================================================= */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           {/* Hamburger Menu & Brand Header */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveTab('more')}
-              className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition"
+              className="p-2 rounded-2xl text-slate-700 hover:bg-slate-100 transition shadow-sm border border-slate-100"
               aria-label="Open Menu"
             >
               <Menu className="w-6 h-6 stroke-[2.2]" />
             </button>
 
             <div className="flex items-center gap-2.5">
-              {/* Exact Red Heart + Blue Pulse Logo Icon */}
+              {/* 3D Anatomical Red Heart + Pulse Logo matching reference */}
               <div className="relative w-11 h-11 flex items-center justify-center">
                 <Heart className="w-10 h-10 text-rose-600 fill-rose-50" strokeWidth={2} />
                 <Activity className="w-5 h-5 text-blue-700 absolute stroke-[2.5]" />
@@ -283,17 +310,26 @@ export default function App() {
             </div>
           </div>
 
-          {/* User Welcome Pill Dropdown */}
+          {/* User Welcome Pill Dropdown & Database Badge */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 bg-sky-50/80 hover:bg-sky-100/90 border border-sky-200/60 rounded-full px-3 py-1.5 transition text-left"
+              onClick={() => setShowDbModal(true)}
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-[10.5px] font-bold text-slate-700 border border-slate-300/80 transition"
+              title="Database Status"
             >
-              <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+              <Database className="w-3 h-3 text-blue-600" />
+              <span>{isDatabaseConnected ? 'DB Connected' : 'DB Ready (Setup)'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="flex items-center gap-2 bg-sky-50/90 hover:bg-sky-100 border border-sky-200/80 rounded-full px-3 py-1.5 transition text-left shadow-sm"
+            >
+              <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-inner">
                 {patient.name.charAt(0)}
               </div>
               <div className="hidden sm:block">
-                <div className="text-[9.5px] text-slate-500 leading-none">Welcome Back</div>
+                <div className="text-[9.5px] text-slate-500 leading-none font-medium">Welcome Back</div>
                 <div className="text-[12px] font-extrabold text-slate-900 leading-tight">
                   {patient.name}
                 </div>
@@ -304,10 +340,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* =========================================================
+          MAIN CONTAINER: 3D CLAY BANNER & 6-CARD GRID
+          ========================================================= */}
       <main className="max-w-4xl mx-auto px-4 pt-4 space-y-4">
         {/* HERO BANNER: 3D Anatomical Heart & Swat International Hospital Reference Artwork */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#DDEBFA] via-[#E8F1FC] to-[#F3F7FD] border border-blue-100 shadow-[0_12px_32px_-8px_rgba(2,132,199,0.12)] p-6 sm:p-8">
+        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-[#DCEAFC] via-[#EAF2FD] to-[#F5F8FE] border border-blue-200/70 shadow-[0_16px_36px_-6px_rgba(2,132,199,0.14)] p-6 sm:p-8">
           {/* Subtle Heartbeat ECG wave across the background */}
           <div className="absolute inset-0 pointer-events-none opacity-20">
             <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 200">
@@ -321,7 +359,7 @@ export default function App() {
           </div>
 
           <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="space-y-1.5 text-center sm:text-left">
+            <div className="space-y-1 text-center sm:text-left">
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 leading-[1.15]">
                 Your Heart Care
               </h1>
@@ -332,7 +370,7 @@ export default function App() {
                 Healthy Heart... Healthier Life...
               </p>
               <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
-                <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white/90 text-slate-700 shadow-sm border border-slate-200/60">
+                <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white/95 text-slate-700 shadow-sm border border-slate-200/80">
                   MR# {patient.id}
                 </span>
                 <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 shadow-sm">
@@ -343,7 +381,7 @@ export default function App() {
 
             {/* Glowing 3D Heart Illustration with Swat International Hospital Backdrop */}
             <div className="relative shrink-0 flex items-center justify-center">
-              <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-gradient-to-tr from-rose-500/20 via-sky-400/20 to-white/40 p-2 backdrop-blur-sm shadow-xl flex items-center justify-center border border-white/80">
+              <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-gradient-to-tr from-rose-500/20 via-sky-400/20 to-white/40 p-2 backdrop-blur-sm shadow-xl flex items-center justify-center border border-white/90">
                 <img
                   src="https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&w=500&q=80"
                   alt="Swat International Hospital & Cardiac Care"
@@ -359,15 +397,17 @@ export default function App() {
           </div>
         </section>
 
-        {/* 6-CARD ACTION GRID — Exact Layout, Pill Arrows & Distinct Colors from Reference Image */}
+        {/* =========================================================
+            6-CARD CLAYMORPHISM ACTION GRID (Exact Reference Layout)
+            ========================================================= */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {/* 1. Book Appointment (Blue Pill Theme) */}
+          {/* 1. Book Appointment (3D Blue Clay Theme) */}
           <button
             onClick={() => setActiveTab('appointments')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-sky-200 border border-blue-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-blue flex items-center justify-center shrink-0">
                 <Calendar className="w-7 h-7 text-blue-600" />
               </div>
               <div>
@@ -377,18 +417,18 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">Select doctor & time</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-blue-100/80 group-hover:bg-blue-600 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-blue-50 group-hover:bg-blue-600 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-blue-600 group-hover:text-white transition" />
             </div>
           </button>
 
-          {/* 2. My Appointments (Emerald Green Pill Theme) */}
+          {/* 2. My Appointments (3D Emerald Green Clay Theme) */}
           <button
             onClick={() => setActiveTab('appointments')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-200 border border-emerald-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-emerald flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-7 h-7 text-emerald-600" />
               </div>
               <div>
@@ -398,18 +438,18 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">View & Manage</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-emerald-100/80 group-hover:bg-emerald-600 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-emerald-50 group-hover:bg-emerald-600 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-emerald-600 group-hover:text-white transition" />
             </div>
           </button>
 
-          {/* 3. View Reports (Lavender / Purple Pill Theme) */}
+          {/* 3. View Reports (3D Purple Clay Theme) */}
           <button
             onClick={() => setActiveTab('reports')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-100 to-indigo-200 border border-purple-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-purple flex items-center justify-center shrink-0">
                 <FileText className="w-7 h-7 text-purple-600" />
               </div>
               <div>
@@ -419,18 +459,18 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">Lab, Echo, ECG etc.</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-purple-100/80 group-hover:bg-purple-600 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-purple-50 group-hover:bg-purple-600 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-purple-600 group-hover:text-white transition" />
             </div>
           </button>
 
-          {/* 4. Medicine Info (Warm Amber / Orange Pill Theme) */}
+          {/* 4. Medicine Info (3D Warm Amber / Orange Clay Theme) */}
           <button
             onClick={() => setActiveTab('medicines')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-200 border border-amber-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-amber flex items-center justify-center shrink-0">
                 <Pill className="w-7 h-7 text-amber-600" />
               </div>
               <div>
@@ -440,18 +480,18 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">Search Medicines & Alarms</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-amber-100/80 group-hover:bg-amber-600 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-amber-50 group-hover:bg-amber-600 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-amber-600 group-hover:text-white transition" />
             </div>
           </button>
 
-          {/* 5. Our Facilities (Teal / Cyan Pill Theme) */}
+          {/* 5. Our Facilities (3D Cyan / Teal Clay Theme) */}
           <button
             onClick={() => setActiveTab('facilities')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-100 to-teal-200 border border-cyan-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-cyan flex items-center justify-center shrink-0">
                 <Info className="w-7 h-7 text-cyan-700" />
               </div>
               <div>
@@ -461,18 +501,18 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">Services & Departments</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-cyan-100/80 group-hover:bg-cyan-700 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-cyan-50 group-hover:bg-cyan-700 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-cyan-700 group-hover:text-white transition" />
             </div>
           </button>
 
-          {/* 6. Help & Support (Violet / Support Pill Theme) */}
+          {/* 6. Help & Support (3D Violet Clay Theme) */}
           <button
             onClick={() => setActiveTab('sos')}
-            className="clay-grid-card p-4 flex items-center justify-between text-left group"
+            className="clay-card-pill p-4 flex items-center justify-between text-left group"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-200 border border-violet-200 flex items-center justify-center shadow-inner shrink-0">
+              <div className="w-14 h-14 rounded-2xl clay-icon-violet flex items-center justify-center shrink-0">
                 <Headphones className="w-7 h-7 text-violet-700" />
               </div>
               <div>
@@ -482,14 +522,16 @@ export default function App() {
                 <p className="text-[12px] text-slate-500 font-medium">Emergency ECG & Contact Us</p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-violet-100/80 group-hover:bg-violet-700 flex items-center justify-center transition">
+            <div className="w-9 h-9 clay-arrow-bubble bg-violet-50 group-hover:bg-violet-700 flex items-center justify-center transition">
               <ArrowRight className="w-4 h-4 text-violet-700 group-hover:text-white transition" />
             </div>
           </button>
         </section>
 
-        {/* YOUR NEXT APPOINTMENT CARD — Exact Navy Banner & Clean White Sub-Card */}
-        <section className="rounded-3xl bg-[#0B254E] overflow-hidden shadow-lg border border-slate-200">
+        {/* =========================================================
+            YOUR NEXT APPOINTMENT: 3D CLAY NAVY CARD
+            ========================================================= */}
+        <section className="clay-navy-card overflow-hidden">
           {/* Header strip */}
           <div className="px-5 py-3.5 flex items-center justify-between text-white">
             <div className="flex items-center gap-2 font-bold text-sm sm:text-base">
@@ -504,11 +546,11 @@ export default function App() {
             </button>
           </div>
 
-          {/* Inner White Card */}
-          <div className="p-4 sm:p-5 bg-white m-1.5 rounded-[22px] flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Inner White Clay Card */}
+          <div className="p-4 sm:p-5 bg-white m-1.5 rounded-[24px] flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-3.5 w-full md:w-auto">
               {/* Doctor Avatar */}
-              <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+              <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-inner">
                 <img
                   src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=200&q=80"
                   alt="Dr. Saleem Ullah"
@@ -538,7 +580,7 @@ export default function App() {
 
             {/* Status & View Details Button */}
             <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-              <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm">
+              <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center gap-1.5 shadow-sm">
                 <Check className="w-3.5 h-3.5 stroke-[3]" /> {patient.appointment.status}
               </span>
               <button
@@ -551,10 +593,12 @@ export default function App() {
           </div>
         </section>
 
-        {/* BOTTOM 3 TRUST PILLARS — Secure & Trusted | Quick Access | Better Care */}
+        {/* =========================================================
+            BOTTOM 3 TRUST PILLARS
+            ========================================================= */}
         <section className="rounded-2xl bg-gradient-to-r from-sky-50 via-slate-50 to-rose-50 border border-slate-200/80 p-3 flex flex-wrap items-center justify-around gap-3 text-center">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
               <Check className="w-4 h-4 stroke-[3]" />
             </div>
             <div className="text-left">
@@ -566,7 +610,7 @@ export default function App() {
           <div className="hidden sm:block h-7 w-[1px] bg-slate-300" />
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-sm">
               <Clock className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div className="text-left">
@@ -578,7 +622,7 @@ export default function App() {
           <div className="hidden sm:block h-7 w-[1px] bg-slate-300" />
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm">
               <Heart className="w-4 h-4 fill-white" />
             </div>
             <div className="text-left">
@@ -588,9 +632,11 @@ export default function App() {
           </div>
         </section>
 
-        {/* DYNAMIC CONTENT PANELS (When a specific category is selected) */}
+        {/* =========================================================
+            DYNAMIC WORKSPACE TABS (Reports, Meds, Facilities, SOS)
+            ========================================================= */}
         {activeTab === 'medicines' && (
-          <section className="clay-grid-card p-6 space-y-4">
+          <section className="clay-card-pill p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900">My Daily Cardiac Prescriptions</h3>
@@ -620,7 +666,7 @@ export default function App() {
                       <h4 className="font-extrabold text-sm text-slate-900">{m.name}</h4>
                     </div>
                     <button
-                      onClick={() => toggleMed(m.id)}
+                      onClick={() => toggleMedication(m.id)}
                       className={`px-3 py-1.5 rounded-full text-xs font-black ${
                         m.taken ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
                       }`}
@@ -638,7 +684,7 @@ export default function App() {
         )}
 
         {activeTab === 'reports' && (
-          <section className="clay-grid-card p-6 space-y-4">
+          <section className="clay-card-pill p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-900">Diagnostic Reports & Investigations</h3>
@@ -674,8 +720,64 @@ export default function App() {
           </section>
         )}
 
+        {activeTab === 'facilities' && (
+          <section className="clay-card-pill p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  Our Diagnostic Modalities & Facilities
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Swat International Hospital & Khwaza Khela Medical Center
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab('home')}
+                className="text-xs font-bold text-sky-600 hover:underline"
+              >
+                Close ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  • 24/7 Primary Angioplasty & Cath Lab
+                </h4>
+                <p className="text-slate-600">
+                  Emergency coronary angiography and stenting (DES) with complete hemodynamics.
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  • Color Doppler Echocardiography
+                </h4>
+                <p className="text-slate-600">
+                  High-definition transthoracic echo for LVEF, valvular pathology, and strain analysis.
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  • Exercise Tolerance Testing (ETT)
+                </h4>
+                <p className="text-slate-600">
+                  Full Bruce Protocol computerized treadmill evaluation for inducible ischemia.
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  • 24-Hr Holter & ABPM Monitoring
+                </h4>
+                <p className="text-slate-600">
+                  Continuous ambulatory rhythm analysis and 24-hour ambulatory blood pressure tracking.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
         {activeTab === 'sos' && (
-          <section className="clay-grid-card p-6 border-2 border-rose-300 space-y-4">
+          <section className="clay-card-pill p-6 border-2 border-rose-400 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-black">
@@ -719,15 +821,15 @@ export default function App() {
               <p className="text-xs text-slate-600">{ECG_PRESETS[selectedEcg].summary}</p>
             </div>
 
-            {sosSent && (
-              <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-800 text-xs font-black">
-                ✅ Emergency notification sent to Advanced Heart Center Cath Lab queue and on-call attendant!
+            {sosBanner && (
+              <div className="p-3.5 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-black shadow-sm">
+                {sosBanner}
               </div>
             )}
 
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setSosSent(true)}
+                onClick={handleTransmitSos}
                 className="flex-1 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md"
               >
                 🚨 Alert Cath Lab & Dr. Saleem’s Team
@@ -738,7 +840,7 @@ export default function App() {
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5"
+                className="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm"
               >
                 <PhoneCall className="w-4 h-4" /> WhatsApp Cardiologist
               </a>
@@ -746,8 +848,10 @@ export default function App() {
           </section>
         )}
 
-        {/* DOCTOR BROADCASTS & CLINIC UPDATES FEED */}
-        <section className="clay-grid-card p-6 space-y-4">
+        {/* =========================================================
+            DOCTOR BROADCASTS & CLINIC UPDATES FEED
+            ========================================================= */}
+        <section className="clay-card-pill p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-rose-600" />
@@ -777,7 +881,7 @@ export default function App() {
         </section>
 
         {activeTab === 'admin' && (
-          <section className="clay-grid-card p-6 border-2 border-sky-400 space-y-4">
+          <section className="clay-card-pill p-6 border-2 border-sky-400 space-y-4">
             <h3 className="text-base font-black text-slate-900">
               Doctor Admin Broadcast Studio (Post to Patient Phones)
             </h3>
@@ -807,17 +911,21 @@ export default function App() {
         )}
       </main>
 
-      {/* FLOATING BLUE HEADSET EMERGENCY / TELE-SUPPORT BUTTON (Bottom Right from Image) */}
+      {/* =========================================================
+          FLOATING 3D CLAY HEADSET BUTTON (Bottom Right from Image)
+          ========================================================= */}
       <button
         onClick={() => setActiveTab('sos')}
-        className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-[#0B254E] hover:bg-rose-600 text-white shadow-2xl flex items-center justify-center transition transform hover:scale-105 border-2 border-white"
+        className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full clay-fab-headset text-white flex items-center justify-center transition transform hover:scale-105"
         aria-label="Direct Cardiac Help & Support"
       >
-        <Headphones className="w-6 h-6" />
+        <Headphones className="w-6 h-6 stroke-[2.2]" />
       </button>
 
-      {/* BOTTOM NAVIGATION BAR — Exact 6 Icons matching Reference Image */}
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+      {/* =========================================================
+          BOTTOM NAVIGATION BAR: 6 ICONS MATCHING REFERENCE IMAGE
+          ========================================================= */}
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 shadow-[0_-4px_20px_rgba(15,23,42,0.05)]">
         <div className="max-w-md mx-auto flex items-center justify-between">
           {[
             { id: 'home', label: 'Home', icon: Home },
@@ -837,7 +945,7 @@ export default function App() {
               >
                 <div
                   className={`p-1.5 rounded-2xl transition ${
-                    active ? 'tab-pill-active' : 'text-slate-400 hover:text-slate-600'
+                    active ? 'clay-tab-active' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Icon className={`w-5 h-5 ${active ? 'text-sky-600' : 'text-slate-500'}`} />
@@ -855,10 +963,54 @@ export default function App() {
         </div>
       </nav>
 
-      {/* LOGIN / REGISTRATION MODAL */}
+      {/* =========================================================
+          DATABASE SETUP & CONNECTION MODAL
+          ========================================================= */}
+      {showDbModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="clay-card-pill max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-blue-600" />
+                <h3 className="font-black text-base text-slate-900">Cloud Database Integration</h3>
+              </div>
+              <button onClick={() => setShowDbModal(false)} className="text-slate-400 text-xs font-bold">
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This app is ready to share live records with <strong>Advanced-heart-center-two.vercel.app</strong> using PostgreSQL (Supabase / Neon) or Firebase.
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+              <div className="font-bold text-slate-800">Add these 2 Environment Variables to Vercel:</div>
+              <code className="block bg-slate-900 text-amber-300 p-2.5 rounded-xl font-mono text-[11px] overflow-x-auto">
+                VITE_SUPABASE_URL=https://your-project.supabase.co<br />
+                VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
+              </code>
+            </div>
+
+            <div className="text-[11px] text-slate-500">
+              ✓ Fallback mode is active: All prescriptions, appointments, and vitals currently persist in <strong>localStorage & offline IndexedDB</strong> if cloud variables are omitted.
+            </div>
+
+            <button
+              onClick={() => setShowDbModal(false)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-extrabold text-xs"
+            >
+              Close Setup Guide
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          LOGIN / REGISTRATION MODAL
+          ========================================================= */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+          <div className="clay-card-pill max-w-sm w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-extrabold text-base text-slate-900">Patient Account</h3>
               <button onClick={() => setShowAuthModal(false)} className="text-slate-400 text-xs">
@@ -881,7 +1033,7 @@ export default function App() {
             </div>
 
             {authMode === 'login' ? (
-              <form onSubmit={handleLogin} className="space-y-3">
+              <form onSubmit={handlePatientLogin} className="space-y-3">
                 <input
                   type="text"
                   value={loginInput}
@@ -897,7 +1049,7 @@ export default function App() {
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleRegister} className="space-y-3">
+              <form onSubmit={handlePatientRegister} className="space-y-3">
                 <input
                   type="text"
                   value={regName}

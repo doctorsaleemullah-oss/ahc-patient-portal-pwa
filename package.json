@@ -1,22 +1,21 @@
 {
   "name": "ahc-patient-portal-pwa",
-  "private": false,
-  "version": "2.0.0",
-  "description": "Advanced Heart Center — Patient Portal & Doctor Broadcast PWA (Synced with Advanced-heart-center-two.vercel.app)",
+  "private": true,
+  "version": "2.1.0",
   "type": "module",
+  "description": "Advanced Heart Center — Patient Portal & Doctor Broadcast PWA (Claymorphism UI & Supabase/Firebase Database Ready)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
     "lucide-react": "^0.454.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
